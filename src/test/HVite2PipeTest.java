@@ -1,0 +1,182 @@
+package test;
+
+import hatukau.speech.ASRListener;
+import hatukau.speech.ASRManager;
+
+import java.io.*;
+
+/**
+ * 
+ Test if HVite2 command can be pipe from java source code. you can run it and
+ * test
+ */
+
+public class HVite2PipeTest {
+
+	public static void print(String s) {
+		System.out.println(s);
+	}
+
+	public static void main(String args[]) {
+		// nonThTest();
+		try {
+			thTest();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * multithreaded test using ASRManager class
+	 * 
+	 * @throws Exception
+	 */
+	public static void thTest() throws Exception {
+		ASRManager.startRecognizer(null, "./");
+		ASRManager.addListener(new ASRListener() {
+
+			@Override
+			public void recognizerStarted() {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void recognizerExit() {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void recognitionCompleted(String lines) {
+				// TODO Auto-generated method stub
+				print("ROW : " + lines);
+			}
+		});
+		BufferedReader sysin = new BufferedReader(new InputStreamReader(
+				System.in));
+		while (true) {
+			try {
+				String cmd = sysin.readLine();
+				if (cmd.length() > 0) {
+					ASRManager.sendCommand(cmd.toUpperCase());
+					if (cmd.equalsIgnoreCase("EXIT")) {
+						break;
+					}
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+	}
+
+	/**
+	 * non multithreaded test, early dev.
+	 * 
+	 * @param args
+	 */
+	public static void nonThTest() {
+
+		String base1 = "src/test/test/data";
+		String cmd = base1 + "/HVite2.exe -T 1 -n 10 2  -C " + base1
+				+ "/config_hvite_wav -S " + base1 + "/word.scp -H " + base1
+				+ "/macros -H " + base1 + "/hmmdefs -w " + base1
+				+ "/wdnet_treq " + base1 + "/dict_treq_word " + base1
+				+ "/tiedlist";
+		String line = "Test Number ";
+		try {
+			Process p = Runtime.getRuntime().exec(cmd);
+			BufferedReader inp = new BufferedReader(new InputStreamReader(
+					p.getInputStream()));
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
+					p.getOutputStream()));
+			BufferedReader err = new BufferedReader(new InputStreamReader(
+					p.getErrorStream()));
+			/*
+			 * out.write( "REC\r\n" ); out.flush();
+			 * 
+			 * /*out.write( "EXIT\r\n" ); out.flush();
+			 */
+			/*
+			 * line = inp.readLine(); print("Reading STDOUT\n");
+			 * while(line!=null){ print("resp#: " + line ); // that's ok line =
+			 * inp.readLine(); } print("Reading STDERR\n"); line =
+			 * err.readLine(); while(line!=null){ print("err1: " + line ); //
+			 * that's ok line = err.readLine(); }
+			 */
+			BufferedReader sysin = new BufferedReader(new InputStreamReader(
+					System.in));
+
+			boolean isErr = false;
+			boolean reCmd = false;// reinput command ?
+			boolean isExit = false; // HVite exit ?
+			if (true)
+				while (!isErr) {
+					print("TypeCommmand !");
+					reCmd = false;
+					String ncmd = sysin.readLine();
+					if (ncmd != null)
+						if (!ncmd.equalsIgnoreCase("")) {
+							print("Passing " + ncmd + " to HVite2");
+							out.write(ncmd + "\r\n");
+							out.flush();
+						} else {
+							continue;
+						}
+
+					line = inp.readLine(); // blocking
+					boolean recmd = false;
+					while (line != null) {
+						print("resp#: " + line); // that's ok
+						if (line.indexOf("frames") > 0) {
+							recmd = true;
+							break; // avoid blocking readLine
+
+						}
+						if (line.indexOf("EXIT") >= 0) {
+							isExit = true;
+							break;// avoid blocking readLine
+
+						}
+						if (line.indexOf("NOT UNDERSTOOD") >= 0) {
+							print("NU received\n");
+							recmd = true;
+							break;
+
+						}
+						line = inp.readLine(); // blocking
+					}
+					if (recmd)
+						continue; // no error to read
+					if (isExit)
+						break;
+					line = err.readLine(); // blocking
+					while (line != null) {
+						print("err1: " + line); // that's ok
+						if (line.indexOf("ERROR") >= 0) {
+							isErr = true;
+							break;// avoid blocking readLine
+						}
+						line = err.readLine(); // blocking
+					}
+					if (isErr)
+						break;// avoid blocking readLine
+
+				}
+			p.waitFor();
+			/*
+			 * out.write( "Second Line...\n" ); out.flush(); line =
+			 * inp.readLine(); print("response2: " + line ); // returns an empty
+			 * string, if it returns,,, inp.close(); out.close();
+			 */
+			// p.destroy();;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+	}
+
+}
